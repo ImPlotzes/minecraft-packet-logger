@@ -53,6 +53,9 @@ const proxy = net.createServer((clientConnection) => {
         clientConnection.write(data);
 
         console.log(clientAddress + " |  Got data from the Minecraft server.");
+
+        // TODO
+        // Actually decode the packets and log them
     });
 
     // (Proxy <=== client) When we get data
@@ -61,6 +64,9 @@ const proxy = net.createServer((clientConnection) => {
         serverConnection.write(data);
 
         console.log(clientAddress + " |  Got data from the client.");
+
+        // TODO
+        // Actually decode the packets and log them
     });
 
 
