@@ -108,7 +108,7 @@ const proxy = net.createServer((clientConnection) => {
             serverConnection.destroy();
         } else {
             console.log(clientAddress + " |  All connections terminated.");
-            console.log("END CONNECTION");
+            console.log("---------- END CONNECTION ----------");
             console.log("");
         }
     });
@@ -119,20 +119,20 @@ const proxy = net.createServer((clientConnection) => {
 
     // (Proxy <===> MC server) When there is an error
     serverConnection.on("error", (error) => {
-        console.log("");
-        console.log("ERROR");
+        console.log(clientAddress + " |");
         console.log(clientAddress + " |  ------------- CONNECTION ERROR -------------");
-        console.log(clientAddress + " |  " + error.stack);
+        console.log(clientAddress + " |  " + error);
         console.log(clientAddress + " |  ----------- Proxy <===> MC server ----------");
+        console.log(clientAddress + " |");
     });
 
     // (Proxy <===> Client) When there is an error
     clientConnection.on("error", (error) => {
-        console.log("");
-        console.log("ERROR");
+        console.log(clientAddress + " |");
         console.log(clientAddress + " |  ------------- CONNECTION ERROR -------------");
-        console.log(clientAddress + " |  " + error.stack);
+        console.log(clientAddress + " |  " + error);
         console.log(clientAddress + " |  ------------ Proxy <===> Client ------------");
+        console.log(clientAddress + " |");
     });
 });
 
