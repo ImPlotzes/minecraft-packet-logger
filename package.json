@@ -4,7 +4,7 @@
   "description": "A proxy to log all packets between your client and a Minecraft server.",
   "main": "index.js",
   "scripts": {
-    "start": "node ./index.js"
+    "start": "node ./src/index.js"
   },
   "author": "Plotzes",
   "license": "MIT",

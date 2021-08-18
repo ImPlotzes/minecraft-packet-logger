@@ -1,6 +1,6 @@
 const net = require("net");
 const utils = require("./utils");
-const mcOptions = require("./MC-SERVER");
+const options = require("../options");
 
 // Define proxy parameters
 const proxy_port = 25565;
@@ -12,11 +12,6 @@ if(!proxy_host) {
     console.log("Proxy won't/can't be started!");
     process.exit(0);
 }
-
-
-// Define the Minecraft server
-const mc_host = mcOptions.ip;
-const mc_port = mcOptions.port;
 
 
 // Create the proxy server
@@ -38,7 +33,7 @@ const proxy = net.createServer((clientConnection) => {
     const serverConnection = new net.Socket();
 
     // Create the connection between the proxy and Minecraft server
-    serverConnection.connect(mc_port, mc_host, () => {
+    serverConnection.connect(options.mc_port, options.mc_host, () => {
         serverConnected = true;
         console.log(clientAddress + " |  Connected to the Minecraft server.");
     });
@@ -149,10 +144,10 @@ proxy.on("error", (error) => {
 proxy.listen(proxy_port, proxy_host, () => {
     console.log("================= Proxy started =================");
     console.log("  Proxy:             " + proxy_host + ":" + proxy_port);
-    console.log("  Minecraft Server:  " + mc_host + ":" + mc_port);
+    console.log("  Minecraft Server:  " + options.mc_host + ":" + options.mc_port);
     console.log("");
     console.log("  Connect to \"" + proxy_host + "\" to log");
-    console.log("  packets between you and \"" + mc_host + ":" + mc_port + "\"");
+    console.log("  packets between you and \"" + options.mc_host + ":" + options.mc_port + "\"");
     console.log("=================================================");
     console.log("");
 });
