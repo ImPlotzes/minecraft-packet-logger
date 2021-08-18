@@ -1,7 +1,12 @@
 # 🗂️ `minecraft-packet-logger`
-> The data going through the proxy currently isn't being logged yet, you'll only see a message saying that data has gone through. I'm planning on adding the decoding and logging of the packets as soon as possible.
-
  A small Node.js proxy to log the packets between your client and a server.
+ 
+ <br>
+ 
+ ---
+ **The data going through the proxy currently isn't being logged *yet*, you'll only see a message saying that data has gone through. I'm planning on adding the decoding and logging of the packets as soon as possible.**
+ 
+ ---
 
 <br>
 
