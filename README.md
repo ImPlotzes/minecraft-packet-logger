@@ -43,6 +43,7 @@ All data goes throught the proxy which will allows the proxy to log all of it wi
 
 ## Security
 Since 1.3.1, Minecraft uses encrypted connections for servers, unless the server is in offline/"cracked" mode. This proxy supports encrypted connections with the Minecraft servers. This does mean that the proxy needs an 'accessToken' from your account, to authenticate the secure connection with Mojang. Since you can't authenticate a user connecting to a Minecraft server twice, the connection between the proxy and your client can't be encrypted. This shouldn't matter though, unless you connect to this proxy through a remote connection.
+
 If you want to read encrypted packets, then you need to turn on the `decrypt_encrypted_packets` option in `options.js` The program will automatically try to get your 'accessToken'. Getting the 'accessToken' can fail if you use a modded Minecraft launcher (modded clients should be fine, but modded launchers might not).
 If you leave the option turned off, or the proxy can't get the 'accessToken', then it won't be able to read encrypted connections. All features will still work, like reading unencrypted packets. You're never forced to turn the feature on.
 
