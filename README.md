@@ -3,7 +3,7 @@
 # 🗂️ `minecraft-packet-logger`
  A small Node.js proxy to log the packets between your client and a server.
  
- **This proxy is fully based on protocol version 754 (Minecraft verion 1.16.5), it will likely break on other versions!** *(Maybe I'll add support for other versions if you ask nicely on [my Discord server](https://www.plotzes.ml/discord "my Discord server"), depends on my schedule)*
+ **This proxy is fully based on protocol version 754 (Minecraft verion 1.16.5), it might break on other versions!** *(Maybe I'll add support for other versions if you ask nicely on [my Discord server](https://www.plotzes.ml/discord "my Discord server"), depends on my schedule)*
 
 <br>
 
