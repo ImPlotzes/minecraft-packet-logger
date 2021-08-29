@@ -1,6 +1,6 @@
 {
   "name": "mc-tcp-proxy",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A proxy to log all packets between your client and a Minecraft server.",
   "main": "index.js",
   "scripts": {
@@ -8,5 +8,8 @@
   },
   "author": "Plotzes",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "node-fetch": "^2.6.1",
+    "ps-list": "^7.2.0"
+  }
 }

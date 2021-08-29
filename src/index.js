@@ -1,10 +1,15 @@
 const net = require("net");
+const dns = require("dns");
 const util = require("util");
+const psList = require('ps-list');
+const { exec } = require("child_process");
+
 const utils = require("./utils");
 const options = require("../options");
-const dns = require("dns");
+const ProxyConnection = require("./classes/ProxyConnection");
 
-// Wrap everything in an async Immediately Invoked Function Expression so 
+
+// Wrap everything in an async immediately invoked function expression so 
 // we can use async/await easily
 (async () => {
 
@@ -31,6 +36,8 @@ const dns = require("dns");
         // If the server doesn't use SRV records then it'll thrown an error that we catch
         const srvRecords = await util.promisify(dns.resolveSrv)("_minecraft._tcp." + options.mc_server_ip);
 
+        console.log("\x1b[90mMinecraft server has SRV records\x1b[0m");
+
         // Choose a random record from the ones retrieved (most of the time a server only returns one record)
         const record = srvRecords[Math.random() * (srvRecords.length - 1)];
 
@@ -39,125 +46,111 @@ const dns = require("dns");
         mc_port = record.port;
 
     } catch(e) {
-        // 99% of the time it's a ENOTFOUND error so we can just continue and no need for error handling
+        // 99% of the time it's an ENOTFOUND error so we can just continue and no need for error handling
         // If it's another error... then idk, we'll see
+        if(e.code != "ENOTFOUND" && e.code != "ENODATA") {
+            console.log(e);
+        }
     }
 
+
+    let accessToken;
+    let selectedProfile;
+
+    // If the user gave consent to get the 'accessToken' then try it
+    if(options.decrypt_encrypted_packets) {
+
+        
+        // Get the PID of javaw.exe (Minecraft)
+        const runningApps = await psList();
+        let mcPID;
+        for(let i = 0; i < runningApps.length; i++) {
+            const app = runningApps[i];
+            if(app.name == "javaw.exe") {
+                mcPID = app.pid;
+                break;
+            }
+        }
+
+        // If we found it then get the launch parameters to get the accessToken.
+        // Else say that Minecraft isn't running
+        if(mcPID) {
+            // Check what OS they're using
+            if(process.platform == "win32") {
+                
+                // Get the launch parameters of Minecraft (which contains their UUID and accessToken) via a command
+                const { stdout, stderr } = await util.promisify(exec)("wmic process where ProcessID=" + mcPID + " get commandLine /format:list");
+                
+                // If there was an error, report it
+                if(stderr) {
+                    console.log("\x1b[31mSomething went wrong trying to get the 'accessToken'.\x1b[0m");
+                    console.log(stderr);
+                    console.log("");
+                    console.log("\x1b[91mThis proxy won't be able to read encrypted packets without the 'accessToken'.\x1b[0m");
+
+                // There is no error
+                } else {
+
+                    // Get the useful information out of all the launch parameters
+                    accessToken = stdout.match(/(?<=--accessToken ).*?(?= )/g) || [];
+                    accessToken = accessToken[0];
+                    selectedProfile = {
+                        name: stdout.match(/(?<=--username ).*?(?= )/g) || [],
+                        id: stdout.match(/(?<=--uuid ).*?(?= )/g) || []
+                    };
+                    selectedProfile = {
+                        name: selectedProfile.name[0],
+                        id: selectedProfile.id[0]
+                    }
+
+                    // If we got everything then say that it was successful
+                    if(accessToken && selectedProfile.name && selectedProfile.id) {
+                        console.log("\x1b[32mGot the 'accessToken' needed to read encrypted packets.");
+                        console.log("");
+                        console.log("User: \x1b[92m" + selectedProfile.name);
+                        console.log("\x1b[32mUUID: \x1b[92m" + selectedProfile.id + "\x1b[0m");
+                    } else {
+                        console.log("\x1b[31mCouldn't get the 'accessToken'.");
+                        console.log("Maybe you started Minecraft with a custom launcher...");
+                        console.log("");
+                        console.log("\x1b[91mThis proxy won't be able to read encrypted packets without the 'accessToken'.\x1b[0m");
+                    }
+                }
+
+            // They're not using Windows
+            } else {
+                console.log("\x1b[31mCan't get the 'accessToken'.");
+                console.log("Operating systems besides Windows aren't supported yet.");
+                console.log("");
+                console.log("\x1b[91mThis proxy won't be able to read encrypted packets without the 'accessToken'.\x1b[0m");
+            }
+
+        // Couldn't find a javaw.exe process running
+        } else {
+            console.log("\x1b[31mCan't get the 'accessToken' because Minecraft isn't running.");
+            console.log("Start this proxy \x1b[91mAFTER \x1b[31mopening Minecraft.");
+            console.log("");
+            console.log("\x1b[91mThis proxy won't be able to read encrypted packets without the 'accessToken'.\x1b[0m");
+        }
+
+    // They didn't turn the option on
+    } else {
+        console.log("\x1b[90mDidn't get the 'accessToken' needed to read encrypted packets.");
+        console.log("If you want to read encrypted packets then turn on the 'decrypt_encrypted_packets' setting in 'options.js'.\x1b[0m");
+    }
+
+    console.log("");
+
+
     // Create the proxy server
-    const proxy = net.createServer((clientConnection) => {
+    const proxy = net.createServer(async (clientConnection) => {
+
+        // A client connected to the server
         console.log("");
         console.log("\x1b[42m\x1b[30m--------- BEGIN CONNECTION ---------\x1b[0m");
 
-        // Define connection states
-        let clientConnected = true;
-        let serverConnected = false;
-
-        // Define the client address
-        const clientAddress = clientConnection.remoteAddress + ":" + clientConnection.remotePort;
-        console.log(clientAddress + " |  \x1b[32mClient connected to the proxy.\x1b[0m");
-
-        console.log(clientAddress + " |  \x1b[33mCreating a connection to the Minecraft server...\x1b[0m");
-
-        // Create the client to connect to the Minecraft server
-        const serverConnection = new net.Socket();
-
-        // Create the connection between the proxy and Minecraft server
-        serverConnection.connect(mc_port, mc_ip, () => {
-            serverConnected = true;
-            console.log(clientAddress + " |  \x1b[32mConnected to the Minecraft server.\x1b[0m");
-        });
-
-
-
-        // DATA
-        
-        // (Proxy <=== MC server) When we get data
-        serverConnection.on("data", (data) => {
-            // Forward the data to the client
-            clientConnection.write(data);
-
-            console.log(clientAddress + " |  Got data from the Minecraft server.");
-
-            // TODO
-            // Actually decode the packets and log them
-        });
-
-        // (Proxy <=== client) When we get data
-        clientConnection.on("data", (data) => {
-            // Forward the data to the Minecraft server
-            serverConnection.write(data);
-
-            console.log(clientAddress + " |  Got data from the client.");
-
-            // TODO
-            // Actually decode the packets and log them
-        });
-
-
-
-        // CLOSE
-
-        // (Proxy <===> MC server) When the connection has closed
-        serverConnection.on("close", () => {
-            
-            // Set the connection state of the server to false
-            serverConnected = false;
-
-            console.log(clientAddress + " |  \x1b[31mConnection (proxy <===> MC server) has closed.\x1b[0m");
-
-            // If the client is still connected then close that connection as well.
-            // If not then tell that everything is closed and the connection has ended
-            if(clientConnected) {
-                console.log(clientAddress + " |  \x1b[33mClosing connection (proxy <===> client)...\x1b[0m");
-                clientConnection.destroy();
-            } else {
-                console.log(clientAddress + " |  \x1b[31mAll connections terminated.\x1b[0m");
-                console.log("\x1b[41m\x1b[30m---------- END CONNECTION ----------\x1b[0m");
-                console.log("");
-            }
-        });
-
-        // (Proxy <===> Client) When the connection has closed
-        clientConnection.on("close", () => {
-
-            // Set the connection state of the client to false
-            clientConnected = false;
-
-            console.log(clientAddress + " |  \x1b[31mConnection (proxy <===> client) has closed.\x1b[0m");
-
-            // If the server is still connected then close that connection as well.
-            // If not then tell that everything is closed and the connection has ended
-            if(serverConnected) {
-                console.log(clientAddress + " |  \x1b[33mClosing connection (proxy <===> MC server)...\x1b[0m");
-                serverConnection.destroy();
-            } else {
-                console.log(clientAddress + " |  \x1b[31mAll connections terminated.");
-                console.log("\x1b[41m\x1b[30m---------- END CONNECTION ----------\x1b[0m");
-                console.log("");
-            }
-        });
-
-
-
-        // ERROR
-
-        // (Proxy <===> MC server) When there is an error
-        serverConnection.on("error", (error) => {
-            console.log(clientAddress + " |");
-            console.log(clientAddress + " |  \x1b[31m------------- CONNECTION ERROR -------------\x1b[0m");
-            console.log(clientAddress + " |  \x1b[31m" + error + "\x1b[0m");
-            console.log(clientAddress + " |  \x1b[31m----------- Proxy <===> MC server ----------\x1b[0m");
-            console.log(clientAddress + " |");
-        });
-
-        // (Proxy <===> Client) When there is an error
-        clientConnection.on("error", (error) => {
-            console.log(clientAddress + " |");
-            console.log(clientAddress + " |  \x1b[31m------------- CONNECTION ERROR -------------\x1b[0m");
-            console.log(clientAddress + " |  \x1b[31m" + error + "\x1b[0m");
-            console.log(clientAddress + " |  \x1b[31m------------ Proxy <===> Client ------------\x1b[0m");
-            console.log(clientAddress + " |");
-        });
+        const connection = new ProxyConnection(clientConnection, mc_ip, mc_port, accessToken, selectedProfile);
+        await connection.startServerConnection();
     });
 
 
@@ -170,7 +163,8 @@ const dns = require("dns");
 
 
     // Start the proxy
-    proxy.listen(proxy_port, proxy_host, () => {
+    proxy.listen(proxy_port, proxy_host, async () => {
+
         console.log("\x1b[36m================= Proxy started =================");
         console.log("  Proxy:             " + proxy_host + ":" + proxy_port);
         console.log("  Minecraft Server:  " + options.mc_server_ip + " (" + mc_ip + ":" + mc_port + ")");
